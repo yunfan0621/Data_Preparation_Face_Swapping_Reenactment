@@ -2,4 +2,6 @@
 *.pkl
 *.pt
 *.pyc
+*.png
+*.jpg
 sample/
