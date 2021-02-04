@@ -1,0 +1,5 @@
+*.pth
+*.pkl
+*.pt
+*.pyc
+sample/
