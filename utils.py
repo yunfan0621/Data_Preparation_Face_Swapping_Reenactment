@@ -1,6 +1,77 @@
 # from torch.utils.tensorboard import SummaryWriter
-from tensorboardX import SummaryWriter
+import os
+import cv2
 import numpy as np
+
+import torch
+import torch.nn.functional as F
+import torchvision.transforms as transforms
+from tensorboardX import SummaryWriter
+
+from segment_model.model import BiSeNet
+
+from pdb import set_trace as ST
+
+def check_mkdir(path):
+    if not os.path.exists(path):
+        print('making %s' % path)
+        os.makedirs(path)
+
+
+def get_parsing_map(input_im, target_region_name='face', segnet=None, 
+                    segnet_ckpt_path='/data/yunfan.liu/Data_Preparation_Face_Swapping_Reenactment/segment_model/cp/79999_iter.pth'):
+
+    im_h, im_w, _ = input_im.shape
+
+    if segnet is None:
+        segnet = BiSeNet(n_classes=19).cuda()
+        segnet.load_state_dict(torch.load(segnet_ckpt_path))
+        segnet.eval()
+
+    pre_process = transforms.Compose([
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
+
+    # scale the output tensor to [0, 1]
+    if isinstance(input_im, np.ndarray):
+        im = transforms.ToTensor()(input_im).clone().cuda()
+        #input_im = torch.from_numpy(input_im).float().cuda()
+    else:
+        im = input_im.clone().cuda()
+
+    min_val = float(im.min())
+    max_val = float(im.max())
+    im.clamp_(min=min_val, max=max_val)
+    im.add_(-min_val).div_(max_val - min_val + 1e-6)
+
+    # resize and normalize
+    if len(im.shape) == 3:
+        im = im.unsqueeze(0)
+    im = F.interpolate(im, 512) # shape of input has to be [N, C, H, W], so for the output
+    im = pre_process(im.squeeze(0)).cuda()
+
+    # parse
+    out = segnet(im.unsqueeze(0))[0]
+    parsing_map = out.squeeze(0).cpu().detach().numpy().argmax(0)
+
+    # obtain the binary mask accroding to the name of the target region
+    attr_names = ['background', 'skin', 'l_brow', 'r_brow', 'l_eye', 'r_eye', 'eye_g', 'l_ear', 'r_ear', 'ear_r',
+                      'nose', 'mouth', 'u_lip', 'l_lip', 'neck', 'neck_l', 'cloth', 'hair', 'hat']
+
+    if target_region_name == 'face':
+        cls_name = ['skin', 'l_brow', 'r_brow', 'l_eye', 'r_eye', 'nose', 'mouth', 'u_lip', 'l_lip']
+    else:
+        cls_name == attr_name
+
+    binary_mask = np.zeros((parsing_map.shape[0], parsing_map.shape[1]))
+    for name in cls_name:
+        attr_ind = attr_names.index(name)
+        binary_mask[parsing_map == attr_ind] = 1
+
+    binary_mask = cv2.resize(binary_mask, (im_h, im_w))
+
+    return binary_mask
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -111,6 +182,7 @@ class TensorBoardLogger(SummaryWriter):
             desc += '\n '
 
         return desc
+
 
 def deTesnsor(x, norm):
     if norm:
