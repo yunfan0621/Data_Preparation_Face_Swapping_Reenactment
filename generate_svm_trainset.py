@@ -15,25 +15,31 @@ def generate(args, g_ema, device, mean_latent):
     with torch.no_grad():
         g_ema.eval()
         for i in tqdm(range(args.n_samples)):
-            sample_z = torch.randn(args.sample, args.latent, device=device)
-            output_dict = g_ema([sample_z], truncation=args.truncation, truncation_latent=mean_latent)
-
-            # save the image
+            # set save paths
             save_img_dir = os.path.join(args.save_dir, 'image_{}'.format(args.size))
             check_mkdir(save_img_dir)
-            utils.save_image(output_dict['image'], os.path.join(save_img_dir, f'{str(i).zfill(6)}'+'.png'), 
-                             nrow=1, normalize=True, range=(-1, 1))
+            save_img_path = os.path.join(save_img_dir, f'{str(i).zfill(6)}'+'.png')
 
-            # save latent codes in various spaces
+            save_latent_dir = os.path.join(args.save_dir, 'latent_{}'.format(args.size))
+            check_mkdir(save_latent_dir)
+            save_latent_path = os.path.join(save_latent_dir, f'{str(i).zfill(6)}'+'.pt')
+
+            if os.path.exists(save_img_path) and os.path.exists(save_latent_path):
+                print('Skipping for sample No. {}'.format(i))
+                continue
+
+            # create and save
+            sample_z = torch.randn(args.sample, args.latent, device=device)
+            output_dict = g_ema([sample_z], truncation=args.truncation, truncation_latent=mean_latent)
+            utils.save_image(output_dict['image'], save_img_path, nrow=1, normalize=True, range=(-1, 1))
+
             state = {
                 'z': sample_z,
                 'w': g_ema.get_latent(sample_z),
                 'w_plus': output_dict['style_codes'],
                 'c': output_dict['core_tensor']
-            } # all variables do not require gradient
-            save_latent_dir = os.path.join(args.save_dir, 'latent_{}'.format(args.size))
-            check_mkdir(save_latent_dir)
-            torch.save(state, os.path.join(save_latent_dir, f'{str(i).zfill(6)}'+'.pt'))
+            } # all variables do not require gradient            
+            torch.save(state, save_latent_path)
 
 
 if __name__ == '__main__':
@@ -42,7 +48,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--sample', type=int, default=1)
-    parser.add_argument('--n_samples', type=int, default=10)
+    parser.add_argument('--n_samples', type=int, default=50000)
     parser.add_argument('--latent', type=int, default=512)
     parser.add_argument('--n_mlp', type=int, default=8)
     parser.add_argument('--truncation', type=float, default=0.5)

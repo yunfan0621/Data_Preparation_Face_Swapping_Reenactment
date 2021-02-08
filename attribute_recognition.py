@@ -33,17 +33,10 @@ def att_estimation_api(img_path, args):
             # convert to base64 data
             img_str = cv2.imencode('.jpg', img_rgb_resize)[1].tostring()
             img_base64 = base64.b64encode(img_str)
-            det_res = api.detect(image_base64=img_base64,
-                                 return_attributes="gender,age,smiling,headpose,eyestatus,emotion,mouthstatus")
+            det_res = api.detect(image_base64=img_base64, return_attributes="smiling,headpose,eyestatus,emotion,mouthstatus")
             # det_res = api.detect(image_file=File(img_path), return_attributes="gender,age,smiling,headpose,"
             #                                                                  "eyestatus,emotion,mouthstatus")
             if 'faces' in det_res and det_res['faces']:
-                '''
-                age = int(det_res['faces'][0]['attributes']['age']['value'])
-                gender = str(det_res['faces'][0]['attributes']['gender']['value'])
-                race = det_res['faces'][0]['attributes']['ethnicity']['value']
-                return [age, gender, race]
-                '''
                 return det_res
             else:
                 return -1
@@ -57,8 +50,8 @@ def parse_api_result(det_res):
     res_dict = det_res['faces'][0]['attributes']
 
     msg = ''
-    msg += res_dict['gender']['value'] + ' '
-    msg += str(res_dict['age']['value']) + ' '
+    #msg += res_dict['gender']['value'] + ' '
+    #msg += str(res_dict['age']['value']) + ' '
     msg += '{}({})'.format(str(res_dict['smile']['value']), str(res_dict['smile']['threshold'])) + ' '
 
     msg += '{} {} {}'.format(str(res_dict['headpose']['pitch_angle']),
@@ -113,14 +106,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--load_size', type=int, default=256, help='image size for the input to API')
-    parser.add_argument('--img_dir', type=str, default='./sample/image')
     parser.add_argument('--batch_size', type=int, default=10000, help='number of images in a single process')
-    parser.add_argument('--batch_ind', type=int, default=2, help='index of the image batch')
+    parser.add_argument('--batch_ind', type=int, default=0, help='index of the image batch')
 
     args = parser.parse_args()
 
-    # load the parse results (if exists)
-    parse_file_path = './sample/api_res_raw/img_attr_raw_{}.txt'.format(args.batch_ind)
+    args.img_dir = "/data/yunfan.liu/Data_Preparation_Face_Swapping_Reenactment/sample/svm_trainset/image_{}".format(args.load_size)
+
+    # load the parse results for resuming testing (if exists)
+    parse_file_path = '/data/yunfan.liu/Data_Preparation_Face_Swapping_Reenactment/sample/svm_trainset/attr_label_{}/raw_detections/img_attr_raw_{}.txt'.format(args.load_size, args.batch_ind)
     if os.path.exists(parse_file_path):
         img_attr_dict = load_parse_result(parse_file_path)
     else:
