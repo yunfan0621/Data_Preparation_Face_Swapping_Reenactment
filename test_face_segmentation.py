@@ -18,3 +18,5 @@ if __name__ == '__main__':
 	# face mask read from disk
 	mask_name = '00000.npy'
 	input_mask = np.load(os.path.join(seg_dir, mask_name))
+
+	ST()

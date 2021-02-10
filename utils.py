@@ -12,6 +12,44 @@ from segment_model.model import BiSeNet
 
 from pdb import set_trace as ST
 
+
+# list of torch tensor --> concat numpy array
+def latent_list2tensor(tensor_list):
+    assert isinstance(tensor_list, list), 'list of pytorch tensor expected!'
+
+    tensor_list_tmp = []
+    for t in tensor_list:
+        batch_size = t.shape[0]
+        if batch_size == 1: # squeeze will kill the batch dimension
+            tensor_list_tmp.append(t.squeeze().unsqueeze(0).cpu().numpy())
+        else:
+            tensor_list_tmp.append(t.squeeze().cpu().numpy())
+
+    return np.concatenate(tensor_list_tmp, axis=1)
+
+
+# concat numpy array --> list of torch tensor
+def latent_tensor2list(latent_tensor):
+    # assert len(latent_tensor.shape) == 2 and latent_tensor.shape[0] == 1, 'only tensors with shape [1, dim] are accepted'
+    assert len(latent_tensor.shape) == 2, 'only tensors with shape [n_batch, dim] are accepted'
+
+    _, n_dim = latent_tensor.shape
+
+    tensor_list = []
+    dim_repeat_dict = {512:15, 256:3, 128:3, 64:3, 32:2}
+    start_ind = 0
+    for n_dim in dim_repeat_dict.keys():
+        n_repeat = dim_repeat_dict[n_dim]
+        for i in range(n_repeat):
+            tensor_tmp = latent_tensor[:, start_ind+n_dim*i : start_ind+n_dim*(i+1)].copy().squeeze()
+            tensor_tmp = torch.from_numpy(tensor_tmp).view([-1, 1, n_dim, 1, 1]).float().cuda() # automatic fill up the batch dimension
+            tensor_list.append(tensor_tmp)
+
+        start_ind += n_dim * n_repeat
+
+    return tensor_list
+
+    
 def check_mkdir(path):
     if not os.path.exists(path):
         print('making %s' % path)

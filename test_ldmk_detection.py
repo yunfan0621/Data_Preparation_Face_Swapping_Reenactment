@@ -18,3 +18,5 @@ if __name__ == '__main__':
 	# landmarks read from disk
 	ldmk_name = '00000.npy'
 	input_ldmk = np.load(os.path.join(data_dir, ldmk_name))
+
+	ST()

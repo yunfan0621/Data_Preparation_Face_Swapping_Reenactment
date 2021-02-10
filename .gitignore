@@ -1,8 +1,10 @@
 *.pth
+*.npy
 *.pkl
 *.pt
 *.pyc
 *.png
 *.jpg
+*.txt
 sample/
 3DMM_models/

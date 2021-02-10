@@ -2,6 +2,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+from pdb import set_trace as ST
+
 def load_parse_result(parse_file_path):
     img_attr_dict = {}
     with open(parse_file_path, 'r') as f:
@@ -13,16 +15,8 @@ def load_parse_result(parse_file_path):
 
         attr_list = []
         for attr in line_parts[1:]:
-            if attr.endswith('ale'):
-                if attr == 'Male':
-                    attr_list.append(1.0)
-                else:
-                    attr_list.append(0.0)
-                continue
-
             if attr.endswith(')'):
                 attr = attr[:-6]
-
             try:
                 attr_list.append(float(attr))
             except:
@@ -66,26 +60,24 @@ def process_parse_file(img_attr_dict, attr_file_path):
         for img_path in img_attr_dict.keys():
             attr_list_raw = img_attr_dict[img_path]
             attr_list = []
-            
-            # gender
-            attr_list.append(str(attr_list_raw[0]))
-
-            # age
-            attr_list.append(str(attr_list_raw[1]))
 
             # smile
-            attr_list.append(str(attr_list_raw[2]))
+            attr_list.append(str(attr_list_raw[0]))
 
-            # pose (profile vs. frontal)
-            attr_list.append(str(attr_list_raw[5]))
+            # pose (pitch, roll, yaw)
+            attr_list.append(str(attr_list_raw[1]))
+            attr_list.append(str(attr_list_raw[2]))
+            attr_list.append(str(attr_list_raw[3]))
 
             # wearing glasses
-            no_glass_open = attr_list_raw[6] > 50.0
-            no_glass_close = attr_list_raw[7] > 50.0
-            attr_list.append('0.0' if (no_glass_open or no_glass_close) else '1.0')
+            eyes_open =  (attr_list_raw[4] > 50.0 and attr_list_raw[10] > 50.0) or \
+                         (attr_list_raw[6] > 50.0 and attr_list_raw[12] > 50.0)   
+            eyes_close = (attr_list_raw[5] > 50.0 and attr_list_raw[11] > 50.0) or \
+                         (attr_list_raw[7] > 50.0 and attr_list_raw[13] > 50.0)   
+            attr_list.append('0.0' if eyes_close else '1.0')
 
             # happiness
-            attr_list.append(str(attr_list_raw[21]))
+            attr_list.append(str(attr_list_raw[19]))
 
             # mouth open
             attr_list.append(str(attr_list_raw[-1]))
@@ -100,14 +92,13 @@ def process_parse_file(img_attr_dict, attr_file_path):
 
 
 if __name__ == '__main__':
-    batch_inds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    batch_inds = [0, 1, 2, 3, 4]
 
     for batch_ind in batch_inds:
-        parse_file_path = './sample/api_res_raw/img_attr_raw_{}.txt'.format(batch_ind)
+        parse_file_path = '/data/yunfan.liu/Data_Preparation_Face_Swapping_Reenactment/sample/svm_trainset/attr_label_256/raw_detections/img_attr_raw_{}.txt'.format(batch_ind)
         img_attr_dict = load_parse_result(parse_file_path)
         
         # visualize_attribute_distribution(img_attr_dict)
 
-        attr_file_path = './sample/api_res_fine/img_attr_{}.txt'.format(batch_ind)
+        attr_file_path = '/data/yunfan.liu/Data_Preparation_Face_Swapping_Reenactment/sample/svm_trainset/attr_label_256/refined_detections/img_attr_fine_{}.txt'.format(batch_ind)
         process_parse_file(img_attr_dict, attr_file_path)
-    
