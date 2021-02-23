@@ -34,9 +34,15 @@ def latent_tensor2list(latent_tensor):
     assert len(latent_tensor.shape) == 2, 'only tensors with shape [n_batch, dim] are accepted'
 
     _, n_dim = latent_tensor.shape
+    if n_dim == 9088:
+        dim_repeat_dict = {512:15, 256:3, 128:3, 64:3, 32:2}
+    elif n_dim == 8704:
+        dim_repeat_dict = {512:15, 256:3, 128:2}
+    else:
+        raise ValueError('Unrecognized style code length')
 
     tensor_list = []
-    dim_repeat_dict = {512:15, 256:3, 128:3, 64:3, 32:2}
+    
     start_ind = 0
     for n_dim in dim_repeat_dict.keys():
         n_repeat = dim_repeat_dict[n_dim]
@@ -49,7 +55,33 @@ def latent_tensor2list(latent_tensor):
 
     return tensor_list
 
-    
+
+def latent_interpolate(latent_code, w, b, latent_mode='style', end_point=1.0, steps=2):
+    assert isinstance(w, np.ndarray) and isinstance(b, np.ndarray), 'Convert w and b to numpy.ndarray before interpolation!'
+
+    if latent_mode == 'style':
+        latent_code = latent_list2tensor(latent_code)
+    else:
+        latent_code = latent_code.cpu().numpy()
+
+    assert isinstance(latent_code, np.ndarray), 'The latent code should have been converted to numpy.ndarray!'
+
+    # interpolate in the latent space
+    dist = (latent_code.dot(w.T) + b) / np.linalg.norm(w)
+    linspace = np.linspace(-end_point, end_point, steps)
+    linspace = linspace - dist # set the start point as the most negative sample
+    linspace = linspace.reshape(-1, 1).astype(np.float32)
+    latent_code = np.tile(latent_code, (steps, 1)) + linspace * (w / np.linalg.norm(w))
+
+    # convert the layout back
+    if latent_mode == 'style': # tensor to list
+        latent_code_list = [latent_tensor2list(latent_code[i:i+1, :]) for i in range(steps)]
+    else: # numpy to cuda tensor
+        latent_code_list = [torch.from_numpy(latent_code[i:i+1, :]).cuda() for i in range(steps)]
+
+    return latent_code_list
+
+
 def check_mkdir(path):
     if not os.path.exists(path):
         print('making %s' % path)

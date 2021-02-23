@@ -36,7 +36,7 @@ def generate(args, g_ema, device, mean_latent):
             state = {
                 'z': sample_z,
                 'w': g_ema.get_latent(sample_z),
-                'w_plus': output_dict['style_codes'],
+                'style': output_dict['style_codes'],
                 'c': output_dict['core_tensor']
             } # all variables do not require gradient            
             torch.save(state, save_latent_path)

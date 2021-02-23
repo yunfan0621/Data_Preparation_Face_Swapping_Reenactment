@@ -5,7 +5,7 @@ import base64
 from tqdm import tqdm
 
 import cv2
-from PythonSDK.facepp import API,File
+from PythonSDK.facepp import API, File
 
 api = API()
 
